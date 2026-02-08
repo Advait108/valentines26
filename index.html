@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Connections</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@400;500;600;700;800&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Libre Franklin', sans-serif;
+    background: #fff;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+    color: #000;
+  }
+
+  .header {
+    width: 100%;
+    text-align: center;
+    padding: 20px 0 10px;
+    border-bottom: 1px solid #e0e0e0;
+  }
+
+  .header h1 {
+    font-size: 36px;
+    font-weight: 800;
+    letter-spacing: -1px;
+  }
+
+  .game-container {
+    width: 100%;
+    max-width: 600px;
+    padding: 20px 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .instructions {
+    font-size: 16px;
+    margin-bottom: 16px;
+    color: #000;
+  }
+
+  /* Solved groups */
+  .solved-groups {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 0;
+  }
+
+  .solved-group {
+    width: 100%;
+    border-radius: 10px;
+    padding: 16px;
+    text-align: center;
+    animation: groupReveal 0.4s ease-out;
+  }
+
+  .solved-group .group-name {
+    font-size: 16px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .solved-group .group-words {
+    font-size: 16px;
+    font-weight: 500;
+    margin-top: 4px;
+    text-transform: uppercase;
+  }
+
+  .solved-group.difficulty-0 { background: #f9df6d; }
+  .solved-group.difficulty-1 { background: #a0c35a; }
+  .solved-group.difficulty-2 { background: #b0c4ef; }
+  .solved-group.difficulty-3 { background: #ba81c5; }
+
+  @keyframes groupReveal {
+    0% { transform: scaleY(0); opacity: 0; }
+    100% { transform: scaleY(1); opacity: 1; }
+  }
+
+  /* Game grid */
+  .grid {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin-top: 8px;
+    min-height: 0;
+  }
+
+  .grid:empty { margin-top: 0; }
+
+  .tile {
+    aspect-ratio: 1.4;
+    border-radius: 8px;
+    border: none;
+    background: #efefe6;
+    font-family: 'Libre Franklin', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    text-transform: uppercase;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.1s ease, background 0.15s ease, color 0.15s ease;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    position: relative;
+  }
+
+  .tile:hover { transform: scale(1.02); }
+  .tile:active { transform: scale(0.97); }
+
+  .tile.selected {
+    background: #5a594e;
+    color: #fff;
+    transform: scale(1.02);
+  }
+
+  .tile.shake {
+    animation: shake 0.5s ease;
+  }
+
+  .tile.bounce {
+    animation: bounce 0.6s ease;
+  }
+
+  .tile.jump {
+    animation: jump 0.5s ease;
+  }
+
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    20% { transform: translateX(-8px); }
+    40% { transform: translateX(8px); }
+    60% { transform: translateX(-6px); }
+    80% { transform: translateX(6px); }
+  }
+
+  @keyframes bounce {
+    0% { transform: translateY(0); }
+    30% { transform: translateY(-12px); }
+    50% { transform: translateY(0); }
+    70% { transform: translateY(-6px); }
+    100% { transform: translateY(0); }
+  }
+
+  @keyframes jump {
+    0% { transform: translateY(0) scale(1); }
+    40% { transform: translateY(-20px) scale(1.05); }
+    100% { transform: translateY(0) scale(1); }
+  }
+
+  /* Controls */
+  .controls {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .controls button {
+    font-family: 'Libre Franklin', sans-serif;
+    font-size: 16px;
+    font-weight: 600;
+    padding: 12px 24px;
+    border-radius: 24px;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s, border-color 0.15s, opacity 0.15s;
+  }
+
+  .btn-shuffle, .btn-deselect {
+    background: #fff;
+    color: #000;
+    border: 1px solid #000;
+  }
+
+  .btn-shuffle:hover, .btn-deselect:hover {
+    background: #f0f0f0;
+  }
+
+  .btn-submit {
+    background: #000;
+    color: #fff;
+    border: 1px solid #000;
+  }
+
+  .btn-submit:hover { background: #222; }
+
+  .btn-submit:disabled {
+    background: #fff;
+    color: #aaa;
+    border-color: #aaa;
+    cursor: default;
+  }
+
+  /* Mistakes */
+  .mistakes-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 18px;
+    font-size: 16px;
+  }
+
+  .mistakes-label { font-weight: 500; }
+
+  .dots {
+    display: flex;
+    gap: 6px;
+  }
+
+  .dot {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #5a594e;
+    transition: opacity 0.3s ease, transform 0.3s ease;
+  }
+
+  .dot.lost {
+    opacity: 0;
+    transform: scale(0);
+  }
+
+  /* Win / Lose modal */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(255,255,255,0.85);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    opacity: 0;
+    animation: fadeIn 0.5s ease forwards;
+  }
+
+  .modal {
+    background: #fff;
+    border-radius: 16px;
+    padding: 40px 48px;
+    text-align: center;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+    animation: slideUp 0.4s ease;
+  }
+
+  .modal h2 { font-size: 28px; margin-bottom: 12px; }
+  .modal p { font-size: 16px; color: #555; margin-bottom: 20px; }
+
+  .modal button {
+    font-family: 'Libre Franklin', sans-serif;
+    font-size: 16px;
+    font-weight: 600;
+    padding: 12px 32px;
+    border-radius: 24px;
+    background: #000;
+    color: #fff;
+    border: none;
+    cursor: pointer;
+  }
+
+  .modal button:hover { background: #222; }
+
+  @keyframes fadeIn {
+    to { opacity: 1; }
+  }
+
+  @keyframes slideUp {
+    0% { transform: translateY(30px); opacity: 0; }
+    100% { transform: translateY(0); opacity: 1; }
+  }
+
+  /* Toast */
+  .toast {
+    position: fixed;
+    top: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #000;
+    color: #fff;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    z-index: 200;
+    animation: toastIn 0.25s ease, toastOut 0.25s ease 1.2s forwards;
+    white-space: nowrap;
+  }
+
+  @keyframes toastIn {
+    0% { opacity: 0; transform: translateX(-50%) translateY(-10px); }
+    100% { opacity: 1; transform: translateX(-50%) translateY(0); }
+  }
+
+  @keyframes toastOut {
+    0% { opacity: 1; }
+    100% { opacity: 0; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Connections</h1>
+</div>
+
+<div class="game-container">
+  <div class="instructions">Create four groups of four!</div>
+  <div class="solved-groups" id="solved-groups"></div>
+  <div class="grid" id="grid"></div>
+
+  <div class="controls" id="controls">
+    <button class="btn-shuffle" onclick="shuffle()">Shuffle</button>
+    <button class="btn-deselect" onclick="deselectAll()">Deselect all</button>
+    <button class="btn-submit" id="btn-submit" disabled onclick="submit()">Submit</button>
+  </div>
+
+  <div class="mistakes-container" id="mistakes-container">
+    <span class="mistakes-label">Mistakes remaining:</span>
+    <div class="dots" id="dots"></div>
+  </div>
+</div>
+
+<script>
+const GROUPS = [
+  { name: "Group 1", difficulty: 0, words: ["GROUP 1A", "GROUP 1B", "GROUP 1C", "GROUP 1D"] },
+  { name: "Group 2", difficulty: 1, words: ["GROUP 2A", "GROUP 2B", "GROUP 2C", "GROUP 2D"] },
+  { name: "Group 3", difficulty: 2, words: ["GROUP 3A", "GROUP 3B", "GROUP 3C", "GROUP 3D"] },
+  { name: "Group 4", difficulty: 3, words: ["GROUP 4A", "GROUP 4B", "GROUP 4C", "GROUP 4D"] },
+];
+
+let words = [];
+let selected = new Set();
+let mistakesLeft = 4;
+let solved = [];
+let previousGuesses = [];
+let gameOver = false;
+
+function init() {
+  words = GROUPS.flatMap(g => g.words.map(w => ({ word: w, group: g })));
+  shuffleArray(words);
+  selected.clear();
+  mistakesLeft = 4;
+  solved = [];
+  previousGuesses = [];
+  gameOver = false;
+  document.getElementById('solved-groups').innerHTML = '';
+  render();
+  renderDots();
+  document.getElementById('controls').style.display = 'flex';
+  document.getElementById('mistakes-container').style.display = 'flex';
+  document.querySelectorAll('.modal-overlay').forEach(e => e.remove());
+}
+
+function shuffleArray(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+}
+
+function render() {
+  const grid = document.getElementById('grid');
+  grid.innerHTML = '';
+  words.forEach(item => {
+    const tile = document.createElement('button');
+    tile.className = 'tile' + (selected.has(item.word) ? ' selected' : '');
+    tile.textContent = item.word;
+    tile.onclick = () => toggleSelect(item.word);
+    grid.appendChild(tile);
+  });
+  document.getElementById('btn-submit').disabled = selected.size !== 4;
+}
+
+function renderDots() {
+  const dots = document.getElementById('dots');
+  dots.innerHTML = '';
+  for (let i = 0; i < 4; i++) {
+    const dot = document.createElement('div');
+    dot.className = 'dot' + (i >= mistakesLeft ? ' lost' : '');
+    dots.appendChild(dot);
+  }
+}
+
+function toggleSelect(word) {
+  if (gameOver) return;
+  if (selected.has(word)) {
+    selected.delete(word);
+  } else if (selected.size < 4) {
+    selected.add(word);
+  }
+  render();
+}
+
+function deselectAll() {
+  selected.clear();
+  render();
+}
+
+function shuffle() {
+  shuffleArray(words);
+  render();
+}
+
+function showToast(msg) {
+  const toast = document.createElement('div');
+  toast.className = 'toast';
+  toast.textContent = msg;
+  document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), 1500);
+}
+
+function getGuessKey(sel) {
+  return [...sel].sort().join('|');
+}
+
+function submit() {
+  if (selected.size !== 4 || gameOver) return;
+
+  const selArray = [...selected];
+  const guessKey = getGuessKey(selArray);
+
+  // Check duplicate guess
+  if (previousGuesses.includes(guessKey)) {
+    showToast("Already guessed!");
+    return;
+  }
+  previousGuesses.push(guessKey);
+
+  // Check which group they mostly belong to
+  const groupCounts = {};
+  selArray.forEach(w => {
+    const item = words.find(i => i.word === w);
+    const gName = item.group.name;
+    groupCounts[gName] = (groupCounts[gName] || 0) + 1;
+  });
+
+  const maxCount = Math.max(...Object.values(groupCounts));
+  const matchedGroupName = Object.keys(groupCounts).find(k => groupCounts[k] === maxCount);
+
+  if (maxCount === 4) {
+    // Correct!
+    const matchedGroup = GROUPS.find(g => g.name === matchedGroupName);
+    animateCorrect(selArray, matchedGroup);
+  } else {
+    // Wrong
+    if (maxCount === 3) {
+      showToast("One away...");
+    }
+    animateWrong();
+    mistakesLeft--;
+    renderDots();
+    if (mistakesLeft === 0) {
+      gameOver = true;
+      setTimeout(() => revealAll(), 800);
+    }
+  }
+}
+
+function animateWrong() {
+  const tiles = document.querySelectorAll('.tile');
+  tiles.forEach(tile => {
+    if (selected.has(tile.textContent)) {
+      tile.classList.add('shake');
+      tile.addEventListener('animationend', () => tile.classList.remove('shake'), { once: true });
+    }
+  });
+}
+
+function animateCorrect(selArray, group) {
+  gameOver = true; // temporarily block input
+
+  const tiles = document.querySelectorAll('.tile');
+  const selectedTiles = [];
+  tiles.forEach(tile => {
+    if (selArray.includes(tile.textContent)) {
+      selectedTiles.push(tile);
+    }
+  });
+
+  // Bounce animation sequentially
+  selectedTiles.forEach((tile, i) => {
+    setTimeout(() => {
+      tile.classList.add('jump');
+    }, i * 100);
+  });
+
+  // After bounce, collapse into solved group
+  setTimeout(() => {
+    // Add solved group
+    const solvedDiv = document.createElement('div');
+    solvedDiv.className = `solved-group difficulty-${group.difficulty}`;
+    solvedDiv.innerHTML = `
+      <div class="group-name">${group.name}</div>
+      <div class="group-words">${group.words.join(', ')}</div>
+    `;
+    document.getElementById('solved-groups').appendChild(solvedDiv);
+
+    // Remove from words array
+    words = words.filter(item => !selArray.includes(item.word));
+    solved.push(group.name);
+    selected.clear();
+    gameOver = false;
+    render();
+
+    if (words.length === 0) {
+      setTimeout(() => showWinModal(), 600);
+    }
+  }, 600);
+}
+
+function revealAll() {
+  // Reveal remaining groups in order
+  const remaining = GROUPS.filter(g => !solved.includes(g.name))
+    .sort((a, b) => a.difficulty - b.difficulty);
+
+  remaining.forEach((group, i) => {
+    setTimeout(() => {
+      const solvedDiv = document.createElement('div');
+      solvedDiv.className = `solved-group difficulty-${group.difficulty}`;
+      solvedDiv.innerHTML = `
+        <div class="group-name">${group.name}</div>
+        <div class="group-words">${group.words.join(', ')}</div>
+      `;
+      document.getElementById('solved-groups').appendChild(solvedDiv);
+
+      words = words.filter(item => item.group.name !== group.name);
+      render();
+
+      if (i === remaining.length - 1) {
+        setTimeout(() => showLoseModal(), 600);
+      }
+    }, i * 500);
+  });
+}
+
+function showWinModal() {
+  showModal("Nice!", "You found all the connections!");
+}
+
+function showLoseModal() {
+  showModal("Next time!", "Better luck on the next puzzle.");
+}
+
+function showModal(title, msg) {
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `
+    <div class="modal">
+      <h2>${title}</h2>
+      <p>${msg}</p>
+      <button onclick="this.closest('.modal-overlay').remove(); init();">Play Again</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+}
+
+init();
+</script>
+
+</body>
+</html>
