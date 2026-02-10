@@ -47,15 +47,15 @@
     color: #000;
   }
 
-  /* Board: always 4 rows */
-  .board {
+  /* Solved groups */
+  .solved-groups {
     width: 100%;
     display: flex;
     flex-direction: column;
     gap: 8px;
+    margin-bottom: 0;
   }
 
-  /* Solved group bar */
   .solved-group {
     width: 100%;
     border-radius: 10px;
@@ -88,12 +88,17 @@
     100% { transform: scaleY(1); opacity: 1; }
   }
 
-  /* A row of 4 tiles */
-  .tile-row {
+  /* Game grid */
+  .grid {
+    width: 100%;
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     gap: 8px;
+    margin-top: 8px;
+    min-height: 0;
   }
+
+  .grid:empty { margin-top: 0; }
 
   .tile {
     aspect-ratio: 1.4;
@@ -111,6 +116,7 @@
     transition: transform 0.1s ease, background 0.15s ease, color 0.15s ease;
     user-select: none;
     -webkit-tap-highlight-color: transparent;
+    position: relative;
   }
 
   .tile:hover { transform: scale(1.02); }
@@ -126,6 +132,10 @@
     animation: shake 0.5s ease;
   }
 
+  .tile.bounce {
+    animation: bounce 0.6s ease;
+  }
+
   .tile.jump {
     animation: jump 0.5s ease;
   }
@@ -136,6 +146,14 @@
     40% { transform: translateX(8px); }
     60% { transform: translateX(-6px); }
     80% { transform: translateX(6px); }
+  }
+
+  @keyframes bounce {
+    0% { transform: translateY(0); }
+    30% { transform: translateY(-12px); }
+    50% { transform: translateY(0); }
+    70% { transform: translateY(-6px); }
+    100% { transform: translateY(0); }
   }
 
   @keyframes jump {
@@ -301,7 +319,8 @@
 
 <div class="game-container">
   <div class="instructions">Create four groups of four!</div>
-  <div class="board" id="board"></div>
+  <div class="solved-groups" id="solved-groups"></div>
+  <div class="grid" id="grid"></div>
 
   <div class="controls" id="controls">
     <button class="btn-shuffle" onclick="shuffle()">Shuffle</button>
@@ -326,7 +345,7 @@ const GROUPS = [
 let words = [];
 let selected = new Set();
 let mistakesLeft = 4;
-let solvedGroups = []; // sorted by difficulty
+let solved = [];
 let previousGuesses = [];
 let gameOver = false;
 
@@ -335,9 +354,10 @@ function init() {
   shuffleArray(words);
   selected.clear();
   mistakesLeft = 4;
-  solvedGroups = [];
+  solved = [];
   previousGuesses = [];
   gameOver = false;
+  document.getElementById('solved-groups').innerHTML = '';
   render();
   renderDots();
   document.getElementById('controls').style.display = 'flex';
@@ -353,37 +373,15 @@ function shuffleArray(arr) {
 }
 
 function render() {
-  const board = document.getElementById('board');
-  board.innerHTML = '';
-
-  // Render solved groups first (sorted by difficulty so they stack in order)
-  const sortedSolved = [...solvedGroups].sort((a, b) => a.difficulty - b.difficulty);
-  sortedSolved.forEach(group => {
-    const solvedDiv = document.createElement('div');
-    solvedDiv.className = `solved-group difficulty-${group.difficulty}`;
-    solvedDiv.innerHTML = `
-      <div class="group-name">${group.name}</div>
-      <div class="group-words">${group.words.join(', ')}</div>
-    `;
-    board.appendChild(solvedDiv);
+  const grid = document.getElementById('grid');
+  grid.innerHTML = '';
+  words.forEach(item => {
+    const tile = document.createElement('button');
+    tile.className = 'tile' + (selected.has(item.word) ? ' selected' : '');
+    tile.textContent = item.word;
+    tile.onclick = () => toggleSelect(item.word);
+    grid.appendChild(tile);
   });
-
-  // Render remaining tiles in rows of 4
-  for (let i = 0; i < words.length; i += 4) {
-    const row = document.createElement('div');
-    row.className = 'tile-row';
-    for (let j = i; j < i + 4 && j < words.length; j++) {
-      const item = words[j];
-      const tile = document.createElement('button');
-      tile.className = 'tile' + (selected.has(item.word) ? ' selected' : '');
-      tile.textContent = item.word;
-      tile.dataset.word = item.word;
-      tile.onclick = () => toggleSelect(item.word);
-      row.appendChild(tile);
-    }
-    board.appendChild(row);
-  }
-
   document.getElementById('btn-submit').disabled = selected.size !== 4;
 }
 
@@ -435,12 +433,14 @@ function submit() {
   const selArray = [...selected];
   const guessKey = getGuessKey(selArray);
 
+  // Check duplicate guess
   if (previousGuesses.includes(guessKey)) {
     showToast("Already guessed!");
     return;
   }
   previousGuesses.push(guessKey);
 
+  // Check which group they mostly belong to
   const groupCounts = {};
   selArray.forEach(w => {
     const item = words.find(i => i.word === w);
@@ -452,9 +452,11 @@ function submit() {
   const matchedGroupName = Object.keys(groupCounts).find(k => groupCounts[k] === maxCount);
 
   if (maxCount === 4) {
+    // Correct!
     const matchedGroup = GROUPS.find(g => g.name === matchedGroupName);
     animateCorrect(selArray, matchedGroup);
   } else {
+    // Wrong
     if (maxCount === 3) {
       showToast("One away...");
     }
@@ -479,34 +481,37 @@ function animateWrong() {
 }
 
 function animateCorrect(selArray, group) {
-  gameOver = true;
+  gameOver = true; // temporarily block input
 
-  // Step 1: Move selected tiles to the top row of remaining tiles
-  // Reorder words so selected ones come first
-  const selectedItems = words.filter(item => selArray.includes(item.word));
-  const otherItems = words.filter(item => !selArray.includes(item.word));
-  words = [...selectedItems, ...otherItems];
-  render();
-
-  // Step 2: Bounce the selected tiles sequentially
   const tiles = document.querySelectorAll('.tile');
-  const topTiles = [];
+  const selectedTiles = [];
   tiles.forEach(tile => {
-    if (selArray.includes(tile.dataset.word)) {
-      topTiles.push(tile);
+    if (selArray.includes(tile.textContent)) {
+      selectedTiles.push(tile);
     }
   });
 
-  topTiles.forEach((tile, i) => {
+  // Bounce animation sequentially
+  selectedTiles.forEach((tile, i) => {
     setTimeout(() => {
       tile.classList.add('jump');
     }, i * 100);
   });
 
-  // Step 3: After bounce, collapse into solved group bar
+  // After bounce, collapse into solved group
   setTimeout(() => {
-    words = otherItems;
-    solvedGroups.push(group);
+    // Add solved group
+    const solvedDiv = document.createElement('div');
+    solvedDiv.className = `solved-group difficulty-${group.difficulty}`;
+    solvedDiv.innerHTML = `
+      <div class="group-name">${group.name}</div>
+      <div class="group-words">${group.words.join(', ')}</div>
+    `;
+    document.getElementById('solved-groups').appendChild(solvedDiv);
+
+    // Remove from words array
+    words = words.filter(item => !selArray.includes(item.word));
+    solved.push(group.name);
     selected.clear();
     gameOver = false;
     render();
@@ -514,17 +519,25 @@ function animateCorrect(selArray, group) {
     if (words.length === 0) {
       setTimeout(() => showWinModal(), 600);
     }
-  }, topTiles.length * 100 + 400);
+  }, 600);
 }
 
 function revealAll() {
-  const remaining = GROUPS.filter(g => !solvedGroups.find(s => s.name === g.name))
+  // Reveal remaining groups in order
+  const remaining = GROUPS.filter(g => !solved.includes(g.name))
     .sort((a, b) => a.difficulty - b.difficulty);
 
   remaining.forEach((group, i) => {
     setTimeout(() => {
+      const solvedDiv = document.createElement('div');
+      solvedDiv.className = `solved-group difficulty-${group.difficulty}`;
+      solvedDiv.innerHTML = `
+        <div class="group-name">${group.name}</div>
+        <div class="group-words">${group.words.join(', ')}</div>
+      `;
+      document.getElementById('solved-groups').appendChild(solvedDiv);
+
       words = words.filter(item => item.group.name !== group.name);
-      solvedGroups.push(group);
       render();
 
       if (i === remaining.length - 1) {
