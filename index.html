@@ -313,7 +313,7 @@ const GROUPS = [
 
 let words = [];       // remaining unsolved word items
 let selected = new Set();
-let mistakesLeft = 4;
+let mistakesLeft = 8;
 let solvedSet = new Set(); // difficulty numbers that are solved
 let previousGuesses = [];
 let gameOver = false;
@@ -384,7 +384,7 @@ function render(newlySolved) {
 function renderDots() {
   const dots = document.getElementById('dots');
   dots.innerHTML = '';
-  for (let i = 0; i < 4; i++) {
+  for (let i = 0; i < 8; i++) {
     const dot = document.createElement('div');
     dot.className = 'dot' + (i >= mistakesLeft ? ' lost' : '');
     dots.appendChild(dot);
