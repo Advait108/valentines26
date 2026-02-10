@@ -289,13 +289,7 @@
 
 <div class="game-container">
   <div class="instructions">Create four groups of four!</div>
-  <div class="board" id="board">
-    <!-- 4 rows: each is either a solved-group bar or a tile-row -->
-    <div class="board-row" id="row-0"></div>
-    <div class="board-row" id="row-1"></div>
-    <div class="board-row" id="row-2"></div>
-    <div class="board-row" id="row-3"></div>
-  </div>
+  <div class="board" id="board"></div>
 
   <div class="controls" id="controls">
     <button class="btn-shuffle" onclick="shuffle()">Shuffle</button>
@@ -346,73 +340,43 @@ function shuffleArray(arr) {
   }
 }
 
-// newlySolved = difficulty number that was JUST solved (gets animate-in class), or -1
 function render(newlySolved) {
   if (newlySolved === undefined) newlySolved = -1;
 
-  // Build the 4 rows
-  // Solved groups get their own row by difficulty.
-  // Unsolved tiles fill the remaining rows top-to-bottom.
+  const board = document.getElementById('board');
+  board.innerHTML = '';
 
-  // Figure out which row indices are taken by solved groups
-  // Row assignment: solved groups occupy rows 0,1,2,3 by difficulty order
-  // i.e. the first solved group (by difficulty) gets row 0, second gets row 1, etc.
-  // NO — the user wants difficulty 0 always in row 0, difficulty 1 in row 1, etc.
-  // But that would leave gaps. So instead:
-  // Solved groups stack at the top in difficulty order, unsolved tiles fill rows below.
-
-  // Actually re-reading: "if i solve group 3, first it should go to row 3"
-  // They want each group pinned to its difficulty row. So:
-  // Row 0 = group with difficulty 0 (if solved), else tiles
-  // Row 1 = group with difficulty 1 (if solved), else tiles
-  // etc.
-  // But if only group 3 is solved, rows 0,1,2 have tiles and row 3 has the solved bar.
-  // The 12 remaining tiles fill rows 0,1,2 (4 tiles each).
-
-  // Collect solved difficulties in order
-  const solvedDifficulties = [...solvedSet].sort((a, b) => a - b);
-  const unsolvedRowIndices = []; // which of [0,1,2,3] are tile rows
-  for (let i = 0; i < 4; i++) {
-    if (!solvedSet.has(i)) {
-      unsolvedRowIndices.push(i);
-    }
-  }
-
-  // Clear all 4 row containers
-  for (let i = 0; i < 4; i++) {
-    document.getElementById(`row-${i}`).innerHTML = '';
-  }
-
-  // Place solved group bars in their fixed rows
-  solvedDifficulties.forEach(diff => {
-    const group = GROUPS.find(g => g.difficulty === diff);
-    const rowEl = document.getElementById(`row-${diff}`);
-    const solvedDiv = document.createElement('div');
-    solvedDiv.className = `solved-group difficulty-${diff}` + (newlySolved === diff ? ' animate-in' : '');
-    solvedDiv.innerHTML = `
-      <div class="group-name">${group.name}</div>
-      <div class="group-words">${group.words.join(', ')}</div>
-    `;
-    rowEl.appendChild(solvedDiv);
-  });
-
-  // Place remaining tiles into unsolved rows, 4 per row
+  // Build 4 rows in order. Each row is either a solved group bar (pinned to its
+  // difficulty row) or a row of 4 tiles from the remaining pool.
   let tileIndex = 0;
-  unsolvedRowIndices.forEach(rowIdx => {
-    const rowEl = document.getElementById(`row-${rowIdx}`);
-    const tileRow = document.createElement('div');
-    tileRow.className = 'tile-row';
-    for (let j = 0; j < 4 && tileIndex < words.length; j++, tileIndex++) {
-      const item = words[tileIndex];
-      const tile = document.createElement('button');
-      tile.className = 'tile' + (selected.has(item.word) ? ' selected' : '');
-      tile.textContent = item.word;
-      tile.dataset.word = item.word;
-      tile.onclick = () => toggleSelect(item.word);
-      tileRow.appendChild(tile);
+
+  for (let row = 0; row < 4; row++) {
+    if (solvedSet.has(row)) {
+      // This row is a solved group — render the bar
+      const group = GROUPS.find(g => g.difficulty === row);
+      const solvedDiv = document.createElement('div');
+      solvedDiv.className = `solved-group difficulty-${row}` + (newlySolved === row ? ' animate-in' : '');
+      solvedDiv.innerHTML = `
+        <div class="group-name">${group.name}</div>
+        <div class="group-words">${group.words.join(', ')}</div>
+      `;
+      board.appendChild(solvedDiv);
+    } else {
+      // This row gets the next 4 unsolved tiles
+      const tileRow = document.createElement('div');
+      tileRow.className = 'tile-row';
+      for (let j = 0; j < 4 && tileIndex < words.length; j++, tileIndex++) {
+        const item = words[tileIndex];
+        const tile = document.createElement('button');
+        tile.className = 'tile' + (selected.has(item.word) ? ' selected' : '');
+        tile.textContent = item.word;
+        tile.dataset.word = item.word;
+        tile.onclick = () => toggleSelect(item.word);
+        tileRow.appendChild(tile);
+      }
+      board.appendChild(tileRow);
     }
-    rowEl.appendChild(tileRow);
-  });
+  }
 
   document.getElementById('btn-submit').disabled = selected.size !== 4;
 }
